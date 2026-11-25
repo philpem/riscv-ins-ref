@@ -119,6 +119,17 @@ class SiteBuildTests(unittest.TestCase):
             listing = (output / "latest_riscv/index.html").read_text(encoding="utf-8")
             self.assertIn("/static/riscv.css", listing)
 
+            for name in (
+                "index.html",
+                "latest_riscv/index.html",
+                "latest_riscv/csrindex.html",
+                "latest_riscv/extindex.html",
+            ):
+                page = (output / name).read_text(encoding="utf-8")
+                self.assertIn("Version test", page, name)
+                self.assertIn("Data from the RISC-V Unified Database", page, name)
+                self.assertIn("NOT affiliated", page, name)
+
     def test_overlay_adds_extension(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             spec_dir = Path(directory) / "spec"

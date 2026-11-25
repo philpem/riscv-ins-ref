@@ -174,12 +174,15 @@ class RiscvSiteBuilder:  # pylint: disable=too-few-public-methods
             ("All RISC-V Extensions", extension_listing(spec), "latest_riscv/extindex.html"),
         ]
         pages: list[Page] = []
+        footer_html = self.renderer.riscv_footer_html(self.version)
         for title, listing_html, path in listings:
             page = self.renderer.listing_page(
                 title=title,
                 topbar_html="",
                 listing_html=listing_html,
                 head_template="head/riscv_listing.html",
+                template="listing_riscv.html",
+                footer_html=footer_html,
             )
             page.path = path
             pages.append(page)
@@ -194,4 +197,5 @@ class RiscvSiteBuilder:  # pylint: disable=too-few-public-methods
             register_links=REGISTER_LINKS,
             contact_url="",
             home_template="home_riscv.html",
+            footer_html=self.renderer.riscv_footer_html(self.version),
         )

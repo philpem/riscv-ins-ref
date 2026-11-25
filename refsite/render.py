@@ -54,6 +54,16 @@ class Renderer:
     def _render(self, template: str, **context: object) -> str:
         return self.environment.get_template(template).render(**context)
 
+    def riscv_footer_html(self, version: str) -> str:
+        """Render the RISC-V version/copyright/disclaimer footer fragment."""
+
+        return self._render(
+            "partials/riscv_footer.html",
+            version=escape_text(version),
+            copyright_text=escape_text(self.copyright_text),
+            disclaimer=escape_text(self.disclaimer),
+        ).rstrip("\n")
+
     def instruction_page(
         self,
         *,
@@ -202,12 +212,14 @@ class Renderer:
         listing_html: str,
         extra_newlines: int = 0,
         head_template: str = "head/listing.html",
+        template: str = "listing.html",
+        footer_html: str = "",
     ) -> Page:
         head_html = self._render(
             head_template, title=escape_text(title), site_title=escape_text(self.site_title)
         ).rstrip("\n")
         html = self._render(
-            "listing.html",
+            template,
             doctype=DOCTYPE_XHTML,
             html_attrs=XHTML_ATTRS,
             head_html=head_html,
@@ -215,6 +227,7 @@ class Renderer:
             cloudflare_html=self.cloudflare_html,
             topbar_html=topbar_html,
             listing_html=listing_html,
+            footer_html=footer_html,
             extra_newlines=extra_newlines,
         )
         return Page(path="", html=html, title=title, kind="listing")
@@ -229,6 +242,7 @@ class Renderer:
         contact_url: str,
         site_description_paragraph: str | None = None,
         home_template: str = "home.html",
+        footer_html: str = "",
     ) -> Page:
         html = self._render(
             home_template,
@@ -247,5 +261,6 @@ class Renderer:
             ],
             contact_url=escape_attribute(contact_url),
             cloudflare_html=self.cloudflare_html,
+            footer_html=footer_html,
         )
         return Page(path="index.html", html=html, title=site_title, description=site_description, kind="home")
