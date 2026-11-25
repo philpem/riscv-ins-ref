@@ -6,6 +6,7 @@ RISCV_BUILD_DIR ?= build-riscv
 RISCV_CACHE_DIR ?= .cache/riscv
 UDB_REPO ?= ../riscv-unified-db
 CHERIOT_REPO ?= ../cheriot-sail
+RISCV_BASE_URL ?=
 VERSION ?=
 
 GEN_ARGS = --tarballs-dir "$(TARBALLS_DIR)" --output "$(BUILD_DIR)" --work-dir "$(CACHE_DIR)" --clean
@@ -17,6 +18,10 @@ ifneq ($(strip $(VERSION)),)
 GEN_ARGS += --version "$(VERSION)"
 RISCV_GEN_ARGS += --version "$(VERSION)"
 RISCV_GIT_ARGS += --version "$(VERSION)"
+endif
+ifneq ($(strip $(RISCV_BASE_URL)),)
+RISCV_GEN_ARGS += --base-url "$(RISCV_BASE_URL)"
+RISCV_GIT_ARGS += --base-url "$(RISCV_BASE_URL)"
 endif
 
 .DEFAULT_GOAL := all
@@ -159,6 +164,7 @@ help:
 		'  CACHE_DIR=$(CACHE_DIR)' \
 		'  RISCV_BUILD_DIR=$(RISCV_BUILD_DIR)' \
 		'  RISCV_CACHE_DIR=$(RISCV_CACHE_DIR)' \
+		'  RISCV_BASE_URL=$(RISCV_BASE_URL)' \
 		'  UDB_REPO=$(UDB_REPO)' \
 		'  CHERIOT_REPO=$(CHERIOT_REPO)' \
 		'  VERSION=$(VERSION)'

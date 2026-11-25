@@ -6,10 +6,52 @@ asset-copying behaviour, so it lives here rather than being duplicated.
 
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 
 ROBOTS_TXT = "User-agent: *\nAllow: /\n"
+_TEXT_SUFFIXES = frozenset({".html", ".css", ".js", ".txt"})
+
+
+def apply_base_url(output_dir: str | Path, base_url: str) -> int:
+    """Prefix root-absolute URLs so the site works under a subpath.
+
+    GitHub project Pages serve a site from ``https://<user>.github.io/<repo>/``.
+    The templates use root-absolute links, so rewrite them after the build but
+    before Pagefind indexes the pages.
+    """
+
+    prefix = "/" + str(base_url).strip("/")
+    if prefix == "/":
+        return 0
+    escaped = re.escape(prefix[1:])
+    root_attribute = re.compile(
+        rf'(?P<attribute>\b(?:href|src|action)=["\'])/(?!/|{escaped}/)'
+    )
+    root_css_url = re.compile(rf"url\(/(?!/|{escaped}/)")
+    output = Path(output_dir)
+    changed = 0
+    for path in sorted(output.rglob("*")):
+        if not path.is_file() or path.suffix not in _TEXT_SUFFIXES:
+            continue
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".html":
+            updated = root_attribute.sub(
+                lambda match: f'{match.group("attribute")}{prefix}/', text
+            )
+        elif path.suffix == ".css":
+            updated = root_css_url.sub(f"url({prefix}/", text)
+        elif path.name == "pagefind-component-ui.js":
+            updated = text.replace('"/pagefind/"', f'"{prefix}/pagefind/"')
+        elif path.name == "robots.txt":
+            updated = f"User-agent: *\nAllow: {prefix}/\n"
+        else:
+            continue
+        if updated != text:
+            path.write_text(updated, encoding="utf-8")
+            changed += 1
+    return changed
 
 
 def resolve_build_paths(

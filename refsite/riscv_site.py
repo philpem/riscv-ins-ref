@@ -12,7 +12,7 @@ from pathlib import Path
 
 from .cheriot import apply_cheriot
 from .model import BuildStats, Page
-from .output import copy_shared_assets, resolve_build_paths, write_relative
+from .output import apply_base_url, copy_shared_assets, resolve_build_paths, write_relative
 from .render import Renderer
 from .riscv_render import (
     csr_listing,
@@ -71,6 +71,7 @@ class RiscvSiteBuilder:  # pylint: disable=too-few-public-methods,too-many-insta
         templates_dir: str | Path | None = None,
         overlay_dir: str | Path | None = None,
         cheriot_repo: str | Path | None = None,
+        base_url: str = "",
     ) -> None:
         self.spec_dir = Path(spec_dir)
         self.output_dir, self.assets_dir, self.templates_dir = resolve_build_paths(
@@ -79,6 +80,7 @@ class RiscvSiteBuilder:  # pylint: disable=too-few-public-methods,too-many-insta
         self.version = version
         self.overlay_dir = Path(overlay_dir) if overlay_dir is not None else None
         self.cheriot_repo = Path(cheriot_repo) if cheriot_repo is not None else None
+        self.base_url = base_url
         self.renderer = Renderer(
             self.templates_dir,
             site_title=SITE_TITLE,
@@ -117,6 +119,7 @@ class RiscvSiteBuilder:  # pylint: disable=too-few-public-methods,too-many-insta
             listings=3,
         )
         stats.assets = self._copy_assets()
+        apply_base_url(self.output_dir, self.base_url)
         return stats
 
     def _copy_assets(self) -> int:

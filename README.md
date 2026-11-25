@@ -257,6 +257,7 @@ Override the defaults on the command line or in the environment:
 | `RISCV_CACHE_DIR` | `.cache/riscv` | RISC-V extraction cache |
 | `UDB_REPO` | `../riscv-unified-db` | Unified Database git checkout |
 | `CHERIOT_REPO` | `../cheriot-sail` | CHERIoT Sail checkout or `cheri_insts.sail` |
+| `RISCV_BASE_URL` | empty | URL path prefix for a subpath deployment |
 | `PYTHON` | `python3` | Python interpreter |
 
 For example, to use bundles stored in the parent directory:
@@ -315,6 +316,34 @@ extension YAML into the resolved specification. The overlay is a directory of
 Add `--cheriot-repo ../cheriot-sail` to include the CHERIoT capability
 instructions from the Sail model. The footer version then becomes
 `<udb-revision>+cheriot.<cheriot-revision>` unless `--version` is given.
+
+If the site will be served from a subpath (for example a GitHub project page at
+`https://<user>.github.io/riscv-ins-ref/`), pass the prefix:
+
+```sh
+python3 generate.py --arch riscv --udb-repo ../riscv-unified-db \
+  --base-url /riscv-ins-ref --output build-riscv --clean
+```
+
+`--base-url` rewrites root-relative links, CSS font URLs, the Pagefind
+component path and `robots.txt`. It runs after the pages are written and before
+Pagefind indexing, so use the Makefile's `RISCV_BASE_URL` variable with a
+Pagefind target:
+
+```sh
+make riscv-git-cheriot-pagefind RISCV_BASE_URL=/riscv-ins-ref
+```
+
+The default is empty, which produces a site rooted at `/`.
+
+## Deployment
+
+`.github/workflows/pages.yml` builds the RISC-V site (including CHERIoT) and
+deploys `build-riscv/` to GitHub Pages on every push to `main`. It clones the
+Unified Database and CHERIoT Sail repositories, generates the resolved
+specification, runs `make riscv-git-cheriot-pagefind` with a base URL derived
+from the repository name, and uploads the result. Enable Pages for the
+repository with **GitHub Actions** as the source.
 
 ## Output
 

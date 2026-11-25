@@ -1,0 +1,74 @@
+name: Deploy RISC-V reference site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the generator
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Install Pagefind
+        run: npm install --global pagefind
+
+      - name: Clone the RISC-V Unified Database
+        run: git clone --depth 1 https://github.com/riscv/riscv-unified-db udb
+
+      - name: Set up the Unified Database toolchain
+        working-directory: udb
+        env:
+          UDB_TOOLCHAIN_NONE: "1"
+        run: |
+          echo "UDB_TOOLCHAIN_NONE=1" > .toolchain-local
+          ./bin/setup
+
+      - name: Generate the resolved specification
+        working-directory: udb
+        run: ./do gen:resolved_arch
+
+      - name: Clone the CHERIoT Sail model
+        run: git clone --depth 1 https://github.com/CHERIoT-Platform/cheriot-sail cheriot-sail
+
+      - name: Build the site
+        run: |
+          make riscv-git-cheriot-pagefind \
+            UDB_REPO=udb \
+            CHERIOT_REPO=cheriot-sail \
+            RISCV_BASE_URL="/${{ github.event.repository.name }}"
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build-riscv
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

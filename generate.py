@@ -26,6 +26,7 @@ from refsite import archive, riscv_archive
 from refsite.archive import ArchiveError
 from refsite.cheriot import CheriotError
 from refsite.model import BuildStats
+from refsite.output import apply_base_url
 from refsite.pagefind import PagefindError, run_pagefind
 from refsite.riscv_archive import RiscvArchiveError
 from refsite.riscv_site import RiscvSiteBuilder
@@ -118,6 +119,14 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
             "RISC-V only: path to a cheriot-sail checkout (or its "
             "src/cheri_insts.sail) whose capability instructions are added "
             "to the site"
+        ),
+    )
+    parser.add_argument(
+        "--base-url",
+        default="",
+        help=(
+            "RISC-V only: URL path prefix for the generated site, for example "
+            "/riscv-ins-ref when served from GitHub project Pages"
         ),
     )
     parser.add_argument(
@@ -232,6 +241,7 @@ def _build_riscv(args: argparse.Namespace, output: Path, tarballs_dir: Path) -> 
             templates_dir=args.templates_dir,
             overlay_dir=args.overlay_dir,
             cheriot_repo=args.cheriot_repo,
+            base_url=args.base_url,
         )
         return builder.build()
 
@@ -245,6 +255,7 @@ def _build_riscv(args: argparse.Namespace, output: Path, tarballs_dir: Path) -> 
             templates_dir=args.templates_dir,
             overlay_dir=args.overlay_dir,
             cheriot_repo=args.cheriot_repo,
+            base_url=args.base_url,
         )
         return builder.build()
 
@@ -259,6 +270,7 @@ def _build_riscv(args: argparse.Namespace, output: Path, tarballs_dir: Path) -> 
             templates_dir=args.templates_dir,
             overlay_dir=args.overlay_dir,
             cheriot_repo=args.cheriot_repo,
+            base_url=args.base_url,
         )
         return builder.build()
     finally:
@@ -279,6 +291,9 @@ def main(  # pylint: disable=too-many-return-statements,too-many-branches
         return 2
     if args.cheriot_repo and args.arch != "riscv":
         print("error: --cheriot-repo requires --arch riscv", file=sys.stderr)
+        return 2
+    if args.base_url and args.arch != "riscv":
+        print("error: --base-url requires --arch riscv", file=sys.stderr)
         return 2
     if args.output:
         output = Path(args.output)
@@ -326,6 +341,10 @@ def main(  # pylint: disable=too-many-return-statements,too-many-branches
             print(f"warning: Pagefind index was not generated: {error}", file=sys.stderr)
             return 1
         print("Generated Pagefind index")
+        # Pagefind rewrites its component bundle after the build, restoring the
+        # default "/pagefind/" path, so reapply the prefix to the final tree.
+        if args.base_url:
+            apply_base_url(output, args.base_url)
     return 0
 
 
