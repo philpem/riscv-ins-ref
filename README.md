@@ -234,6 +234,10 @@ variables are listed in the table below.
 | `make riscv-clone` | Clone the Unified Database into `UDB_REPO` |
 | `make riscv-resolve` | Run `./do gen:resolved_arch` in the UDB checkout |
 | `make riscv-git-pagefind` | Build from the checkout, then generate the Pagefind index |
+| `make riscv-cheriot` | Build RISC-V plus CHERIoT from a tarball-resolved UDB |
+| `make riscv-git-cheriot` | Build RISC-V plus CHERIoT from the UDB and CHERIoT checkouts |
+| `make riscv-cheriot-pagefind` | Build RISC-V plus CHERIoT and generate the Pagefind index |
+| `make riscv-git-cheriot-pagefind` | Build from both checkouts and generate the Pagefind index |
 | `make serve-riscv` | Build the RISC-V site, then serve it on port 8000 |
 | `make test` | Run the unit tests |
 | `make check` | Compile the Python sources and run the unit tests |
@@ -252,6 +256,7 @@ Override the defaults on the command line or in the environment:
 | `RISCV_BUILD_DIR` | `build-riscv` | RISC-V output directory |
 | `RISCV_CACHE_DIR` | `.cache/riscv` | RISC-V extraction cache |
 | `UDB_REPO` | `../riscv-unified-db` | Unified Database git checkout |
+| `CHERIOT_REPO` | `../cheriot-sail` | CHERIoT Sail checkout or `cheri_insts.sail` |
 | `PYTHON` | `python3` | Python interpreter |
 
 For example, to use bundles stored in the parent directory:
@@ -306,6 +311,10 @@ footer revision from git, or pass `--version`.
 Add `--overlay-dir path/to/overlay` to merge extra instruction, CSR or
 extension YAML into the resolved specification. The overlay is a directory of
 `*.yaml` files searched recursively; objects are matched by `name`.
+
+Add `--cheriot-repo ../cheriot-sail` to include the CHERIoT capability
+instructions from the Sail model. The footer version then becomes
+`<udb-revision>+cheriot.<cheriot-revision>` unless `--version` is given.
 
 ## Output
 
@@ -439,6 +448,7 @@ layer:
 - `refsite/riscv_spec.py` — resolved-spec YAML loader and object model.
 - `refsite/riscv_render.py` — instruction, CSR, extension and listing markup.
 - `refsite/riscv_site.py` — output layout, assets and home page.
+- `refsite/cheriot.py` — CHERIoT Sail model loader.
 
 `Renderer` accepts `site_title`, `copyright_text`, `disclaimer` and
 `chrome_template` as constructor arguments, so the RISC-V site gets its own
@@ -447,16 +457,40 @@ title, copyright, disclaimer and chrome partial without duplicating
 
 ### CHERIoT extensions
 
-The CHERIoT RISC-V extensions are not part of the Unified Database. The
-generator takes them as an overlay: `--overlay-dir` recursively loads `*.yaml`
-files and replaces or appends instruction, CSR and extension objects by
-`name`. The phase-2 adapter will convert the CHERIoT specification's
-`archdoc/def-riscv-insns.tex` instruction table and the per-instruction
-`archdoc/insn-riscv/*.tex` files into that overlay shape, then build with:
+CHERIoT is a capability extension to RISC-V, implemented by both CHERIoT Ibex
+and CHERIoT Kudu. It is not part of the Unified Database, so the generator
+reads the authoritative encodings from the CHERIoT Sail model:
+
+<https://github.com/CHERIoT-Platform/cheriot-sail>
+
+`refsite/cheriot.py` parses `src/cheri_insts.sail` and adds the `Xcheriot`
+extension and its 33 capability instructions (`cgetperm`, `cseal`, `lc`, `sc`,
+`auicgp`, `cjal`, ...). The extension page notes that the same ISA is
+implemented by Ibex and Kudu; there are no core-specific variants.
+
+Clone the model next to the UDB checkout and build:
 
 ```sh
-python3 generate.py --arch riscv --overlay-dir path/to/cheriot-overlay ...
+git clone https://github.com/CHERIoT-Platform/cheriot-sail ../cheriot-sail
+make riscv-git-cheriot
 ```
+
+or, from a tarball-resolved UDB:
+
+```sh
+make riscv-cheriot
+```
+
+Set `CHERIOT_REPO` if the checkout is elsewhere. The footer version becomes
+`<udb-revision>+cheriot.<cheriot-revision>` unless `VERSION` is set.
+`--cheriot-repo` is the equivalent direct-CLI option and accepts either a
+checkout or a path to `src/cheri_insts.sail`.
+
+CHERIoT also changes the meaning of some base instructions (capability-relative
+`cjal`/`cjalr`/`lc`/`sc` and the standard load/store forms). The loader
+publishes the dedicated capability mnemonics; the extension page describes the
+ISA as a whole, and the base instruction pages remain the Unified Database's
+RISC-V definitions.
 
 ## Repository layout
 
@@ -476,6 +510,7 @@ refsite/
   riscv_spec.py          RISC-V YAML object model and overlay loading
   riscv_render.py        RISC-V page and listing markup
   riscv_site.py          RISC-V build orchestration and assets
+  cheriot.py             CHERIoT Sail capability-instruction loader
   render.py              Jinja environment and page render helpers
   site.py                ARM build orchestration, assets and robots.txt
   pagefind.py            Optional Pagefind invocation

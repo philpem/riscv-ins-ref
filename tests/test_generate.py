@@ -108,7 +108,7 @@ class CliSourceTests(unittest.TestCase):
             )
             self.assertEqual(status, 0)
             page = (output / "latest_riscv/insn/add.html").read_text(encoding="utf-8")
-            self.assertIn(f"Version {short} ", page)
+            self.assertIn(f"Version {short}</p>", page)
             self.assertEqual(spec.name, "_")
 
     def test_udb_repo_requires_a_resolved_spec(self) -> None:

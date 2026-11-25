@@ -126,8 +126,11 @@ class SiteBuildTests(unittest.TestCase):
                 "latest_riscv/extindex.html",
             ):
                 page = (output / name).read_text(encoding="utf-8")
-                self.assertIn("Version test", page, name)
-                self.assertIn("Data from the RISC-V Unified Database", page, name)
+                self.assertIn('<p class="copyconf">Version test</p>', page, name)
+                self.assertIn(
+                    '<p class="copyconf">Data from the RISC-V Unified Database', page, name
+                )
+                self.assertNotIn("CHERIoT extensions", page, name)
                 self.assertIn("NOT affiliated", page, name)
 
     def test_overlay_adds_extension(self) -> None:

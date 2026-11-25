@@ -6,6 +6,8 @@ Examples:
     python3 generate.py --tarballs-dir .. --output build --pagefind
     python3 generate.py --arch riscv --tarballs-dir .. --output build-riscv
     python3 generate.py --arch riscv --udb-repo ../riscv-unified-db --output build-riscv
+    python3 generate.py --arch riscv --udb-repo ../riscv-unified-db \\
+        --cheriot-repo ../cheriot-sail --output build-riscv
 
 The generated ARM tree is self-contained: ``index.html``, ``latest_aarch64/``,
 ``latest_sysreg/``, ``static/`` and ``pagefind/``.  The RISC-V tree contains
@@ -22,6 +24,7 @@ from pathlib import Path
 
 from refsite import archive, riscv_archive
 from refsite.archive import ArchiveError
+from refsite.cheriot import CheriotError
 from refsite.model import BuildStats
 from refsite.pagefind import PagefindError, run_pagefind
 from refsite.riscv_archive import RiscvArchiveError
@@ -109,6 +112,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--cheriot-repo",
+        default=None,
+        help=(
+            "RISC-V only: path to a cheriot-sail checkout (or its "
+            "src/cheri_insts.sail) whose capability instructions are added "
+            "to the site"
+        ),
+    )
+    parser.add_argument(
         "--work-dir",
         default=None,
         help="directory used to cache extracted tarballs (default: a temporary directory)",
@@ -188,13 +200,29 @@ def _resolve_udb_repo(repo: Path) -> tuple[Path, str]:
     return spec_dir, version
 
 
+def _cheriot_version(version: str, repo: str | Path | None) -> str:
+    """Append the CHERIoT checkout's short revision to *version*."""
+
+    if not repo:
+        return version
+    path = Path(repo)
+    if not path.is_dir():
+        return version
+    try:
+        revision = _git_short_revision(path)
+    except GenerationError:
+        return version
+    return f"{version}+cheriot.{revision}"
+
+
 def _build_riscv(args: argparse.Namespace, output: Path, tarballs_dir: Path) -> BuildStats:
     """Build the RISC-V site from a UDB checkout, a spec directory or a tarball."""
 
     if args.spec_dir:
         spec_dir = Path(args.spec_dir)
-        version = args.version or (
-            _git_short_revision(Path(args.udb_repo)) if args.udb_repo else "unknown"
+        version = args.version or _cheriot_version(
+            _git_short_revision(Path(args.udb_repo)) if args.udb_repo else "unknown",
+            args.cheriot_repo,
         )
         builder = RiscvSiteBuilder(
             spec_dir=spec_dir,
@@ -203,6 +231,7 @@ def _build_riscv(args: argparse.Namespace, output: Path, tarballs_dir: Path) -> 
             assets_dir=args.assets_dir,
             templates_dir=args.templates_dir,
             overlay_dir=args.overlay_dir,
+            cheriot_repo=args.cheriot_repo,
         )
         return builder.build()
 
@@ -211,10 +240,11 @@ def _build_riscv(args: argparse.Namespace, output: Path, tarballs_dir: Path) -> 
         builder = RiscvSiteBuilder(
             spec_dir=spec_dir,
             output_dir=output,
-            version=args.version or version,
+            version=args.version or _cheriot_version(version, args.cheriot_repo),
             assets_dir=args.assets_dir,
             templates_dir=args.templates_dir,
             overlay_dir=args.overlay_dir,
+            cheriot_repo=args.cheriot_repo,
         )
         return builder.build()
 
@@ -223,17 +253,21 @@ def _build_riscv(args: argparse.Namespace, output: Path, tarballs_dir: Path) -> 
         builder = RiscvSiteBuilder(
             spec_dir=extracted.spec_dir,
             output_dir=output,
-            version=args.version or extracted.version,
+            version=args.version
+            or _cheriot_version(extracted.version, args.cheriot_repo),
             assets_dir=args.assets_dir,
             templates_dir=args.templates_dir,
             overlay_dir=args.overlay_dir,
+            cheriot_repo=args.cheriot_repo,
         )
         return builder.build()
     finally:
         riscv_archive.cleanup(extracted)
 
 
-def main(argv: list[str] | None = None) -> int:
+def main(  # pylint: disable=too-many-return-statements,too-many-branches
+    argv: list[str] | None = None,
+) -> int:
     """Run the generator and return a process exit code."""
 
     args = parse_args(argv)
@@ -242,6 +276,9 @@ def main(argv: list[str] | None = None) -> int:
         return 2
     if (args.spec_dir or args.udb_repo) and args.arch != "riscv":
         print("error: --spec-dir and --udb-repo require --arch riscv", file=sys.stderr)
+        return 2
+    if args.cheriot_repo and args.arch != "riscv":
+        print("error: --cheriot-repo requires --arch riscv", file=sys.stderr)
         return 2
     if args.output:
         output = Path(args.output)
@@ -263,7 +300,14 @@ def main(argv: list[str] | None = None) -> int:
             stats = _build_arm(args, output, tarballs_dir)
         else:
             stats = _build_riscv(args, output, tarballs_dir)
-    except (ArchiveError, RiscvArchiveError, SpecError, GenerationError, OSError) as error:
+    except (
+        ArchiveError,
+        RiscvArchiveError,
+        SpecError,
+        CheriotError,
+        GenerationError,
+        OSError,
+    ) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 

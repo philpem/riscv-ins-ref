@@ -560,7 +560,7 @@ def instruction_listing(spec: Spec) -> str:
     rows = "".join(
         "<tr>"
         f'<td><a href="insn/{_attr(item.name)}.html"><code>{_text(item.name)}</code></a></td>'
-        f"<td>{_text(item.long_name)}</td>"
+        f"<td>{_text(_summary(item.long_name, item.description))}</td>"
         f"<td>{_text(item.extension or item.defined_by)}</td>"
         "</tr>"
         for item in spec.instructions
@@ -579,7 +579,7 @@ def csr_listing(spec: Spec) -> str:
     rows = "".join(
         "<tr>"
         f'<td><a href="csr/{_attr(item.name)}.html"><code>{_text(item.name)}</code></a></td>'
-        f"<td>{_text(item.long_name)}</td>"
+        f"<td>{_text(_summary(item.long_name, item.description))}</td>"
         f"<td>{f'0x{item.address:03X}' if item.address is not None else ''}</td>"
         f"<td>{_text(item.priv_mode)}</td>"
         "</tr>"
@@ -602,7 +602,7 @@ def extension_listing(spec: Spec) -> str:
         rows.append(
             "<tr>"
             f'<td><a href="ext/{_attr(item.name)}.html"><code>{_text(item.name)}</code></a></td>'
-            f"<td>{_text(item.long_name)}</td>"
+            f"<td>{_text(_summary(item.long_name, item.description))}</td>"
             f"<td>{_text(item.type)}</td>"
             f"<td>{_text(versions)}</td>"
             "</tr>"

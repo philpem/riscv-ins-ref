@@ -5,19 +5,23 @@ CACHE_DIR ?= .cache/armref
 RISCV_BUILD_DIR ?= build-riscv
 RISCV_CACHE_DIR ?= .cache/riscv
 UDB_REPO ?= ../riscv-unified-db
+CHERIOT_REPO ?= ../cheriot-sail
 VERSION ?=
 
 GEN_ARGS = --tarballs-dir "$(TARBALLS_DIR)" --output "$(BUILD_DIR)" --work-dir "$(CACHE_DIR)" --clean
 RISCV_GEN_ARGS = --arch riscv --tarballs-dir "$(TARBALLS_DIR)" --output "$(RISCV_BUILD_DIR)" --work-dir "$(RISCV_CACHE_DIR)" --clean
 RISCV_GIT_ARGS = --arch riscv --udb-repo "$(UDB_REPO)" --output "$(RISCV_BUILD_DIR)" --work-dir "$(RISCV_CACHE_DIR)" --clean
+RISCV_CHERIOT_ARGS = $(RISCV_GEN_ARGS) --cheriot-repo "$(CHERIOT_REPO)"
+RISCV_GIT_CHERIOT_ARGS = $(RISCV_GIT_ARGS) --cheriot-repo "$(CHERIOT_REPO)"
 ifneq ($(strip $(VERSION)),)
 GEN_ARGS += --version "$(VERSION)"
 RISCV_GEN_ARGS += --version "$(VERSION)"
+RISCV_GIT_ARGS += --version "$(VERSION)"
 endif
 
 .DEFAULT_GOAL := all
 
-.PHONY: all build riscv riscv-git riscv-clone riscv-resolve check-udb-repo check-tarballs check-tarballs-riscv check-clean-dirs pagefind riscv-pagefind serve serve-riscv test check clean install-deps help
+.PHONY: all build riscv riscv-git riscv-clone riscv-resolve riscv-cheriot riscv-git-cheriot riscv-cheriot-pagefind riscv-git-cheriot-pagefind check-udb-repo check-cheriot-repo check-tarballs check-tarballs-riscv check-clean-dirs pagefind riscv-pagefind serve serve-riscv test check clean install-deps help
 
 all: build
 
@@ -42,6 +46,25 @@ check-udb-repo:
 
 riscv-git: check-udb-repo
 	$(PYTHON) generate.py $(RISCV_GIT_ARGS)
+
+check-cheriot-repo:
+	@test -f "$(CHERIOT_REPO)/src/cheri_insts.sail" || test -f "$(CHERIOT_REPO)" || { \
+		echo "error: no CHERIoT Sail model at $(CHERIOT_REPO)" >&2; \
+		echo "Clone https://github.com/CHERIoT-Platform/cheriot-sail, or set CHERIOT_REPO=..." >&2; \
+		exit 1; \
+	}
+
+riscv-cheriot: check-tarballs-riscv check-cheriot-repo
+	$(PYTHON) generate.py $(RISCV_CHERIOT_ARGS)
+
+riscv-git-cheriot: check-udb-repo check-cheriot-repo
+	$(PYTHON) generate.py $(RISCV_GIT_CHERIOT_ARGS)
+
+riscv-cheriot-pagefind: check-tarballs-riscv check-cheriot-repo
+	$(PYTHON) generate.py $(RISCV_CHERIOT_ARGS) --pagefind
+
+riscv-git-cheriot-pagefind: check-udb-repo check-cheriot-repo
+	$(PYTHON) generate.py $(RISCV_GIT_CHERIOT_ARGS) --pagefind
 
 check-tarballs:
 	@test -d "$(TARBALLS_DIR)" || { \
@@ -119,6 +142,10 @@ help:
 		'  make pagefind   Build the ARM site and generate the Pagefind index' \
 		'  make riscv-pagefind  Build the RISC-V site and generate the Pagefind index' \
 		'  make riscv-git-pagefind  Build from the UDB checkout and generate the Pagefind index' \
+		'  make riscv-cheriot  Build RISC-V with the CHERIoT instructions from $(CHERIOT_REPO)' \
+		'  make riscv-git-cheriot  Build RISC-V + CHERIoT from the UDB and CHERIoT checkouts' \
+		'  make riscv-cheriot-pagefind  Build RISC-V + CHERIoT and generate the Pagefind index' \
+		'  make riscv-git-cheriot-pagefind  Build from both checkouts and generate the Pagefind index' \
 		'  make serve      Build, then serve $(BUILD_DIR) on port 8000' \
 		'  make serve-riscv  Build, then serve $(RISCV_BUILD_DIR) on port 8000' \
 		'  make test       Run the unit tests' \
@@ -133,4 +160,5 @@ help:
 		'  RISCV_BUILD_DIR=$(RISCV_BUILD_DIR)' \
 		'  RISCV_CACHE_DIR=$(RISCV_CACHE_DIR)' \
 		'  UDB_REPO=$(UDB_REPO)' \
+		'  CHERIOT_REPO=$(CHERIOT_REPO)' \
 		'  VERSION=$(VERSION)'

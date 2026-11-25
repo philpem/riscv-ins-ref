@@ -54,13 +54,14 @@ class Renderer:
     def _render(self, template: str, **context: object) -> str:
         return self.environment.get_template(template).render(**context)
 
-    def riscv_footer_html(self, version: str) -> str:
+    def riscv_footer_html(self, version: str, cheriot_credit: str = "") -> str:
         """Render the RISC-V version/copyright/disclaimer footer fragment."""
 
         return self._render(
             "partials/riscv_footer.html",
             version=escape_text(version),
             copyright_text=escape_text(self.copyright_text),
+            cheriot_credit=escape_text(cheriot_credit),
             disclaimer=escape_text(self.disclaimer),
         ).rstrip("\n")
 
@@ -130,6 +131,8 @@ class Renderer:
         version: str,
         kind: str,
         html_attrs: str = XHTML_ATTRS,
+        template: str = "page.html",
+        footer_html: str = "",
     ) -> Page:
         """Render a content page using an adapter-selected head template."""
 
@@ -140,13 +143,14 @@ class Renderer:
             site_title=escape_text(self.site_title),
         ).rstrip("\n")
         html = self._render(
-            "page.html",
+            template,
             doctype=DOCTYPE_XHTML,
             html_attrs=html_attrs,
             head_html=head_html,
             chrome_html=self.chrome_html,
             cloudflare_html=self.cloudflare_html,
             content_html=content_html,
+            footer_html=footer_html,
             version=escape_text(version),
             copyright_text=escape_text(self.copyright_text),
             disclaimer=escape_text(self.disclaimer),
@@ -160,6 +164,7 @@ class Renderer:
         description: str,
         content_html: str,
         version: str,
+        footer_html: str = "",
     ) -> Page:
         return self.content_page(
             head_template="head/riscv.html",
@@ -168,6 +173,8 @@ class Renderer:
             content_html=content_html,
             version=version,
             kind="instruction",
+            template="page_riscv.html",
+            footer_html=footer_html,
         )
 
     def riscv_csr_page(
@@ -177,6 +184,7 @@ class Renderer:
         description: str,
         content_html: str,
         version: str,
+        footer_html: str = "",
     ) -> Page:
         return self.content_page(
             head_template="head/riscv.html",
@@ -185,6 +193,8 @@ class Renderer:
             content_html=content_html,
             version=version,
             kind="csr",
+            template="page_riscv.html",
+            footer_html=footer_html,
         )
 
     def riscv_extension_page(
@@ -194,6 +204,7 @@ class Renderer:
         description: str,
         content_html: str,
         version: str,
+        footer_html: str = "",
     ) -> Page:
         return self.content_page(
             head_template="head/riscv.html",
@@ -202,6 +213,8 @@ class Renderer:
             content_html=content_html,
             version=version,
             kind="extension",
+            template="page_riscv.html",
+            footer_html=footer_html,
         )
 
     def listing_page(
