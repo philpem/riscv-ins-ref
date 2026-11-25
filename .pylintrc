@@ -1,0 +1,5 @@
+[SIMILARITIES]
+# The ARM and RISC-V builders intentionally mirror each other's small
+# orchestration blocks. Keep the duplicate-code check for substantial
+# copy-paste rather than a handful of shared call arguments.
+min-similarity-lines=10

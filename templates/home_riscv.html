@@ -1,0 +1,69 @@
+<html>
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <meta
+      name="description"
+      content="{{ site_description }}"
+    />
+
+    <link rel="stylesheet" href="/pagefind/pagefind-component-ui.css" />
+
+    <link rel="stylesheet" href="/static/normalize.css" />
+    <link rel="stylesheet" href="/static/main.css" />
+    <link rel="stylesheet" href="/static/riscv.css" />
+
+    <title>{{ site_title }}</title>
+  </head>
+
+  <body>
+    <h1>{{ site_title }}</h1>
+
+    <p>
+      {{ site_description_paragraph }}
+    </p>
+
+    <p>
+      You can use the search field below (and at the top of every page) to
+      search for an instruction, CSR or extension. Alternatively, you can
+      browse the full listings manually:
+    </p>
+
+    <ul>
+      <li>
+        All Instructions: {% for link in instruction_links %}<a href="{{ link.href }}">{{ link.label }}</a>{% if not loop.last %} |
+        {% endif %}{% endfor %}
+      </li>
+      <li>
+        All Registers and Extensions:
+        {% for link in register_links %}<a href="{{ link.href }}">{{ link.label }}</a>{% if not loop.last %} |
+        {% endif %}{% endfor %}
+      </li>
+    </ul>
+
+    <p>
+      Inspired by
+      <a href="https://arm.jonpalmisc.com/">Jon's Arm Reference</a>.
+    </p>
+
+    <pagefind-searchbox autofocus></pagefind-searchbox>
+
+    <div id="wasm-note" class="note">
+      <p>
+        If you see this note instead of a search field, your browser either does
+        not support <a href="https://webassembly.org">WebAssembly</a> or it has
+        been disabled, e.g. in Apple's
+        <a href="https://support.apple.com/en-us/105120">Lockdown Mode</a>.
+      </p>
+    </div>
+
+    <script type="module" src="/pagefind/pagefind-component-ui.js"></script>
+    <script type="text/javascript" src="/static/pagefind.js"></script>
+
+    <script type="text/javascript">
+      if (typeof WebAssembly === "object") {
+        document.getElementById("wasm-note").style.display = "none";
+      }
+    </script>
+  {{ cloudflare_html }}</body>
+</html>

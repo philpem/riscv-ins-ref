@@ -9,6 +9,7 @@ from .arm_isa import build_instruction_pages
 from .arm_sysreg import build_register_pages
 from .indexes import build_instruction_listings, build_register_listings
 from .model import BuildStats, Page
+from .output import copy_shared_assets, resolve_build_paths, write_relative
 from .render import Renderer
 
 SITE_TITLE = "Jon's Arm Reference"
@@ -47,12 +48,10 @@ class SiteBuilder:
     ) -> None:
         self.a64_dir = Path(a64_dir)
         self.sysreg_dir = Path(sysreg_dir)
-        self.output_dir = Path(output_dir).resolve()
-        self.version = version
-        self.assets_dir = Path(assets_dir)
-        self.templates_dir = (
-            Path(templates_dir) if templates_dir is not None else self.assets_dir / "templates"
+        self.output_dir, self.assets_dir, self.templates_dir = resolve_build_paths(
+            output_dir, assets_dir, templates_dir
         )
+        self.version = version
         self.renderer = Renderer(self.templates_dir, site_title=SITE_TITLE)
 
     def build(self) -> BuildStats:
@@ -93,24 +92,10 @@ class SiteBuilder:
         return stats
 
     def _write(self, relative_path: str, content: str) -> None:
-        destination = (self.output_dir / relative_path).resolve()
-        if destination != self.output_dir and self.output_dir not in destination.parents:
-            raise ValueError(f"output path escapes the build directory: {relative_path}")
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(content, encoding="utf-8")
+        write_relative(self.output_dir, relative_path, content)
 
     def _copy_assets(self) -> int:
-        count = 0
-        for source_dir, target_name in (
-            (self.assets_dir / "static", "static"),
-            (self.assets_dir / "pagefind", "pagefind"),
-        ):
-            target_dir = self.output_dir / target_name
-            target_dir.mkdir(parents=True, exist_ok=True)
-            for source in sorted(source_dir.iterdir()):
-                if source.is_file():
-                    shutil.copy2(source, target_dir / source.name)
-                    count += 1
+        count = copy_shared_assets(self.assets_dir, self.output_dir)
 
         svg_dir = self.output_dir / "latest_aarch64"
         svg_dir.mkdir(parents=True, exist_ok=True)

@@ -32,6 +32,7 @@ class Renderer:
             "with nor endorsed by Arm Limited."
         ),
         chrome_template: str = "partials/chrome.html",
+        cloudflare_template: str | None = "partials/cloudflare.html",
     ) -> None:
         self.site_title = site_title
         self.copyright_text = copyright_text
@@ -46,7 +47,9 @@ class Renderer:
         # Including them directly would insert that newline into the page at
         # the include site, which is not how the published pages are laid out.
         self.chrome_html = self._render(chrome_template).rstrip("\n")
-        self.cloudflare_html = self._render("partials/cloudflare.html").rstrip("\n")
+        self.cloudflare_html = (
+            self._render(cloudflare_template).rstrip("\n") if cloudflare_template else ""
+        )
 
     def _render(self, template: str, **context: object) -> str:
         return self.environment.get_template(template).render(**context)
@@ -107,6 +110,90 @@ class Renderer:
         )
         return Page(path="", html=html, title=title, description=description, kind="sysreg")
 
+    def content_page(
+        self,
+        *,
+        head_template: str,
+        title: str,
+        description: str,
+        content_html: str,
+        version: str,
+        kind: str,
+        html_attrs: str = XHTML_ATTRS,
+    ) -> Page:
+        """Render a content page using an adapter-selected head template."""
+
+        head_html = self._render(
+            head_template,
+            title=escape_text(title),
+            description=escape_attribute(description),
+            site_title=escape_text(self.site_title),
+        ).rstrip("\n")
+        html = self._render(
+            "page.html",
+            doctype=DOCTYPE_XHTML,
+            html_attrs=html_attrs,
+            head_html=head_html,
+            chrome_html=self.chrome_html,
+            cloudflare_html=self.cloudflare_html,
+            content_html=content_html,
+            version=escape_text(version),
+            copyright_text=escape_text(self.copyright_text),
+            disclaimer=escape_text(self.disclaimer),
+        )
+        return Page(path="", html=html, title=title, description=description, kind=kind)
+
+    def riscv_instruction_page(
+        self,
+        *,
+        title: str,
+        description: str,
+        content_html: str,
+        version: str,
+    ) -> Page:
+        return self.content_page(
+            head_template="head/riscv.html",
+            title=title,
+            description=description,
+            content_html=content_html,
+            version=version,
+            kind="instruction",
+        )
+
+    def riscv_csr_page(
+        self,
+        *,
+        title: str,
+        description: str,
+        content_html: str,
+        version: str,
+    ) -> Page:
+        return self.content_page(
+            head_template="head/riscv.html",
+            title=title,
+            description=description,
+            content_html=content_html,
+            version=version,
+            kind="csr",
+        )
+
+    def riscv_extension_page(
+        self,
+        *,
+        title: str,
+        description: str,
+        content_html: str,
+        version: str,
+    ) -> Page:
+        return self.content_page(
+            head_template="head/riscv.html",
+            title=title,
+            description=description,
+            content_html=content_html,
+            version=version,
+            kind="extension",
+        )
+
     def listing_page(
         self,
         *,
@@ -114,9 +201,10 @@ class Renderer:
         topbar_html: str,
         listing_html: str,
         extra_newlines: int = 0,
+        head_template: str = "head/listing.html",
     ) -> Page:
         head_html = self._render(
-            "head/listing.html", title=escape_text(title), site_title=escape_text(self.site_title)
+            head_template, title=escape_text(title), site_title=escape_text(self.site_title)
         ).rstrip("\n")
         html = self._render(
             "listing.html",
@@ -140,9 +228,10 @@ class Renderer:
         register_links: list[dict[str, str]],
         contact_url: str,
         site_description_paragraph: str | None = None,
+        home_template: str = "home.html",
     ) -> Page:
         html = self._render(
-            "home.html",
+            home_template,
             site_title=escape_text(site_title),
             site_description=escape_attribute(site_description),
             site_description_paragraph=escape_text(

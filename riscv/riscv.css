@@ -1,0 +1,91 @@
+/* Styles for the RISC-V reference pages.
+   The shared main.css provides the palette, typography and chrome; these
+   rules cover the bitfield diagrams and tabular sections that only the
+   RISC-V renderer emits. */
+
+.encoding-table {
+  font-size: 0.75rem;
+  margin: var(--margin-block-big);
+  table-layout: fixed;
+  width: 100%;
+}
+
+.encoding-table th,
+.encoding-table td {
+  border: var(--border);
+  overflow: hidden;
+  padding: 2px;
+  text-align: center;
+  vertical-align: middle;
+}
+
+.encoding-table .encoding-bitnumbers th {
+  font-size: 0.65rem;
+  font-weight: 400;
+}
+
+.encoding-table .encoding-fields td {
+  background: var(--color-bg-secondary);
+}
+
+.encoding-table .encoding-variable {
+  background: var(--color-bg-hint);
+}
+
+.encoding-table .encoding-reserved {
+  background: var(--color-bg-primary);
+}
+
+.decode-table,
+.fields-table,
+.listing-table,
+.versions-table,
+.pseudo-table,
+.access-table {
+  margin: var(--margin-block);
+  width: 100%;
+}
+
+.decode-table th,
+.decode-table td,
+.fields-table th,
+.fields-table td,
+.listing-table th,
+.listing-table td,
+.versions-table th,
+.versions-table td,
+.pseudo-table th,
+.pseudo-table td,
+.access-table th,
+.access-table td {
+  border-bottom: var(--border);
+  padding: calc(var(--pad) / 3) calc(var(--pad) / 2);
+  text-align: left;
+  vertical-align: top;
+}
+
+.listing-table {
+  font-size: 0.95rem;
+}
+
+.fields-table td.field-bits {
+  white-space: nowrap;
+}
+
+.fields-table pre.field-code {
+  font-size: 0.7rem;
+  margin: 0;
+  max-width: 28rem;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.csr-metadata,
+.extension-type,
+.timing-note {
+  color: var(--color-fg-alt);
+}
+
+p.copyconf {
+  overflow-wrap: anywhere;
+}

@@ -1,14 +1,16 @@
-# ARM reference site generator
+# Architecture reference site generator
 
 This repository rebuilds the community site published at
-`arm.jonpalmisc.com` from Arm's official Exploration Tools XML bundles. The
-generator produces a self-contained static site with instruction pages, system
-register pages, alphabetic indexes, the home page, CSS, fonts and the Pagefind
-search component.
+`arm.jonpalmisc.com` from Arm's official Exploration Tools XML bundles, and
+generates an equivalent RISC-V reference site from the RISC-V Unified
+Database. Each build produces a self-contained static site with instruction
+pages, register pages, alphabetic indexes, the home page, CSS, fonts and the
+Pagefind search component.
 
-The code is split into an ARM-specific content layer and an architecture-neutral
-presentation layer. The templates can be reused for a RISC-V reference site;
-see [Reusing this for RISC-V](#reusing-this-for-risc-v).
+The code is split into architecture-specific content layers and an
+architecture-neutral presentation layer. The ARM adapters consume Arm's XML
+bundles; the RISC-V adapters consume the Unified Database's YAML resolved
+specification. The page shell, chrome and listing templates are shared.
 
 ## Quick start
 
@@ -22,7 +24,8 @@ installed.
    make install-deps
    ```
 
-2. Download the two ARM bundles into `tarballs/`:
+2. Download the two ARM bundles into `tarballs/` (skip this step if you only
+   want the RISC-V site):
 
    ```sh
    mkdir -p tarballs
@@ -57,13 +60,64 @@ make serve
 
 Then open <http://localhost:8000/>.
 
+### RISC-V quick start
+
+Preferred: clone the Unified Database and generate its resolved specification
+from the checkout. The short commit hash is used as the footer revision.
+
+```sh
+make riscv-clone UDB_REPO=../riscv-unified-db
+make riscv-resolve UDB_REPO=../riscv-unified-db
+make riscv-git UDB_REPO=../riscv-unified-db
+make serve-riscv
+```
+
+`make riscv-resolve` runs `./do gen:resolved_arch` inside the checkout. It needs
+the UDB project's native toolchain (mise, Ruby and the UDB gems); see the
+Unified Database README. The resolved specification is generated into
+`gen/resolved_spec/` and is not committed to git. The first `./do` run
+bootstraps mise; make sure the installed `mise` is on `PATH` (the bootstrap
+prints its location) or the bundler step cannot find it.
+
+If you do not want the Ruby toolchain, use the published resolved-spec tarball
+instead:
+
+```sh
+mkdir -p tarballs
+curl -fL -o tarballs/resolved_spec.tar.gz \
+  https://riscv.github.io/riscv-unified-db/resolved_spec/resolved_spec.tar.gz
+curl -fsSL https://riscv.github.io/riscv-unified-db/index.html \
+  | grep -oE '[0-9a-f]{40}' | head -1 > tarballs/resolved_spec.revision
+make riscv
+make serve-riscv
+```
+
+For the Pagefind search index, use `make riscv-git-pagefind` or
+`make riscv-pagefind` instead of the plain build target.
+
+The output is written to `build-riscv/`. A successful build reports:
+
+```text
+Generated 1397 instruction pages
+Generated 417 register pages
+Generated 186 extension pages
+Generated 3 listing pages plus index.html
+Copied 8 assets
+Output: .../build-riscv
+```
+
+The two architectures are independent: `make` builds the ARM site and
+`make riscv` builds the RISC-V site. They share templates, CSS, fonts and the
+Pagefind component, but each has its own output and extraction cache.
+
 ## Requirements
 
 - Python 3.10 or newer
 - `lxml` 5.0 or newer
 - `jinja2` 3.1 or newer
+- `PyYAML` 6.0 or newer
 - GNU Make
-- Optional: the Pagefind CLI, or Node.js with `npx`, for `make pagefind`
+- Optional: the Pagefind CLI, or Node.js with `npx`, for the Pagefind targets
 
 Install the Python dependencies with `make install-deps` or:
 
@@ -72,6 +126,8 @@ python3 -m pip install -r requirements.txt
 ```
 
 ## Source bundles
+
+### ARM Exploration Tools
 
 The generator uses the unsuffixed **Preview** packages:
 
@@ -119,6 +175,49 @@ gzip -c < tarballs/SysReg_xml_A_profile-2026-09.tar.gz > tarballs/SysReg_xml_A_p
 mv tarballs/SysReg_xml_A_profile-2026-09.tar.gz.new tarballs/SysReg_xml_A_profile-2026-09.tar.gz
 ```
 
+### RISC-V Unified Database
+
+The RISC-V source is the **resolved specification** published by the
+[RISC-V Unified Database](https://github.com/riscv/riscv-unified-db). It is a
+single tarball of YAML documents with one file per instruction, CSR and
+extension:
+
+<https://riscv.github.io/riscv-unified-db/resolved_spec/resolved_spec.tar.gz>
+
+The preferred source is a git checkout of the Unified Database. The resolved
+specification is generated from that checkout with `./do gen:resolved_arch` (see
+`make riscv-resolve`); it is written to `gen/resolved_spec/_` and is not
+committed to git. `make riscv-git` or `--udb-repo` reads
+`git rev-parse --short HEAD`, so the footer shows git's shortest unambiguous
+commit hash for the exact checkout.
+
+The published tarball is a fallback for machines without the UDB Ruby
+toolchain. It is rebuilt from `main` and does not embed a commit, so the
+deployment page's commit can be saved beside it as
+`tarballs/resolved_spec.revision` (one line, for example
+`5d1ded1f93ab36d3bb6720880a3d12d1d5a8c67e`). The footer shows that hash in
+short form. Without a sidecar, the generator shows the specification build
+date and a SHA-256 prefix of the tarball; `--version` overrides either.
+
+The generator locates the inner `_` directory automatically. The layout is:
+
+```text
+gen/resolved_spec/_/
+  index.yaml              # list of every YAML document in the bundle
+  inst/<ext>/<name>.yaml  # 1,397 instruction definitions
+  csr/<ext>/<name>.yaml   # 417 CSR definitions
+  ext/<name>.yaml         # 186 extension definitions
+```
+
+There is no published HTML tree to reproduce, so the generator renders the
+pages itself from the YAML data: bitfield diagrams, assembly formats, decode
+variables, IDL execution pseudocode and access tables. Descriptions are
+cleaned of AsciiDoc and ERB scaffolding before rendering.
+
+Additional instruction, CSR or extension YAML can be layered on top with
+`--overlay-dir`. Files with the same `name` replace the base object; new names
+are appended. This is the hook used for the CHERIoT extensions.
+
 ## Building
 
 Run `make` with no arguments to build the site. The default targets and
@@ -128,7 +227,14 @@ variables are listed in the table below.
 | --- | --- |
 | `make` | Build the site into `build/` |
 | `make pagefind` | Build the site, then generate the Pagefind index |
+| `make riscv-pagefind` | Build the RISC-V site, then generate the Pagefind index |
 | `make serve` | Build the site, then serve `build/` on port 8000 |
+| `make riscv` | Build the RISC-V site into `build-riscv/` |
+| `make riscv-git` | Build RISC-V from a UDB checkout (`UDB_REPO`) |
+| `make riscv-clone` | Clone the Unified Database into `UDB_REPO` |
+| `make riscv-resolve` | Run `./do gen:resolved_arch` in the UDB checkout |
+| `make riscv-git-pagefind` | Build from the checkout, then generate the Pagefind index |
+| `make serve-riscv` | Build the RISC-V site, then serve it on port 8000 |
 | `make test` | Run the unit tests |
 | `make check` | Compile the Python sources and run the unit tests |
 | `make clean` | Remove `build/` and the extraction cache |
@@ -143,6 +249,9 @@ Override the defaults on the command line or in the environment:
 | `BUILD_DIR` | `build` | Output directory |
 | `CACHE_DIR` | `.cache/armref` | Cached extraction directory |
 | `VERSION` | Derived from the tarball name | Footer version override |
+| `RISCV_BUILD_DIR` | `build-riscv` | RISC-V output directory |
+| `RISCV_CACHE_DIR` | `.cache/riscv` | RISC-V extraction cache |
+| `UDB_REPO` | `../riscv-unified-db` | Unified Database git checkout |
 | `PYTHON` | `python3` | Python interpreter |
 
 For example, to use bundles stored in the parent directory:
@@ -171,6 +280,33 @@ python3 generate.py \
 Use `--pagefind` to run Pagefind after the build, or `--version 2026.09` to
 override the footer version. Run `python3 generate.py --help` for all options.
 
+For the RISC-V site, select the RISC-V adapters with `--arch riscv`:
+
+```sh
+python3 generate.py \
+  --arch riscv \
+  --tarballs-dir tarballs \
+  --output build-riscv \
+  --work-dir .cache/riscv \
+  --clean
+```
+
+To build from a Unified Database checkout instead of a tarball:
+
+```sh
+python3 generate.py --arch riscv --udb-repo ../riscv-unified-db \
+  --output build-riscv --clean
+```
+
+The checkout must already contain `gen/resolved_spec/` (run
+`./do gen:resolved_arch` there). `--spec-dir path/to/resolved_spec/_` uses an
+already-resolved directory directly; combine it with `--udb-repo` to take the
+footer revision from git, or pass `--version`.
+
+Add `--overlay-dir path/to/overlay` to merge extra instruction, CSR or
+extension YAML into the resolved specification. The overlay is a directory of
+`*.yaml` files searched recursively; objects are matched by `name`.
+
 ## Output
 
 ```text
@@ -183,10 +319,33 @@ build/
   pagefind/          # Pagefind component UI, and the index with make pagefind
 ```
 
-The generated tree is self-contained. All links are absolute or relative to the
-site root, so it can be served from any static web server.
+The generated tree is self-contained. All links are absolute or page-relative,
+so it can be served from any static web server.
+
+The RISC-V build has the same shape:
+
+```text
+build-riscv/
+  index.html
+  robots.txt
+  latest_riscv/
+    index.html          # all instructions
+    csrindex.html       # all CSRs
+    extindex.html       # all extensions
+    insn/<name>.html
+    csr/<name>.html
+    ext/<name>.html
+  static/               # shared CSS and fonts, plus riscv.css
+  pagefind/             # Pagefind component UI, and the index with make riscv-pagefind
+```
+
+Pagefind indexes the instruction, CSR and extension pages. The home page and
+the three listing pages are deliberately excluded so that a listing of every
+instruction does not compete with the individual pages in search results.
 
 ## How it works
+
+### ARM pipeline
 
 1. **Archive discovery** (`refsite/archive.py`) finds the newest A64 and SysReg
    bundles, checks that their release dates match, and extracts them safely.
@@ -227,6 +386,31 @@ site root, so it can be served from any static web server.
 6. **Assets** (`refsite/site.py`) copies the published CSS, fonts and Pagefind
    component files, copies the SVG diagrams, and writes `robots.txt`.
 
+### RISC-V pipeline
+
+1. **Archive discovery** (`refsite/riscv_archive.py`) finds
+   `resolved_spec*.tar.gz`, extracts it safely and caches the result using the
+   same size-and-modification-time marker as the ARM adapter.
+
+2. **Specification loading** (`refsite/riscv_spec.py`) reads `index.yaml`,
+   loads every referenced YAML document and turns it into `Instruction`, `Csr`
+   and `Extension` objects. It handles per-RV32/RV64 encodings, disjoint
+   variable bit ranges, `definedBy` expressions and overlay files.
+
+3. **Rendering** (`refsite/riscv_render.py`) produces the body markup: bitfield
+   tables, decode-variable tables, IDL pseudocode blocks, access tables,
+   extension version tables and the three listings. Pages carry the same
+   Pagefind attributes as the ARM pages. Descriptions are cleaned of AsciiDoc
+   and ERB scaffolding, and extension pages follow each extension's
+   `requirements` tree when they have no direct members, so category
+   extensions such as `V`, `A` and `C` list their constituent extensions'
+   instructions and CSRs.
+
+4. **Site assembly** (`refsite/riscv_site.py`) writes `latest_riscv/insn/`,
+   `latest_riscv/csr/` and `latest_riscv/ext/`, the three listings, the home
+   page, the shared assets and `robots.txt`. `refsite/render.py` and the
+   templates supply the page shell.
+
 ## Fidelity and version drift
 
 With the `2026-09` Preview bundles, the generator reproduces the published site
@@ -246,25 +430,33 @@ Some newer instructions (for example `LUTI6`, `CFLT`, `ADDQP`, `LDA64B` and
 `FEAT_LSC64B`) are then missing. This is a property of the input, not a
 generator error. The generator does not patch in newer material.
 
-## Reusing this for RISC-V
+## RISC-V implementation and CHERIoT overlays
 
-The presentation layer is architecture-neutral. A RISC-V generator needs to
-provide:
+The RISC-V adapters live alongside the ARM ones and reuse the presentation
+layer:
 
-1. An archive or discovery module that locates the RISC-V source bundles.
-2. A content adapter that turns each source document into `Page` objects with
-   `path`, `html`, `title`, `description` and `kind` fields. The adapter is
-   responsible for the body markup and Pagefind attributes.
-3. Index builders that produce listing regions in the same shape as
-   `refsite/indexes.py`.
-4. Site constants for the title, description, navigation links and output
-   directory names, plus a footer copyright/disclaimer and a chrome partial for
-   the site notice.
+- `refsite/riscv_archive.py` — bundle discovery, safe extraction and caching.
+- `refsite/riscv_spec.py` — resolved-spec YAML loader and object model.
+- `refsite/riscv_render.py` — instruction, CSR, extension and listing markup.
+- `refsite/riscv_site.py` — output layout, assets and home page.
 
 `Renderer` accepts `site_title`, `copyright_text`, `disclaimer` and
-`chrome_template` as constructor arguments. `templates/page.html`,
-`templates/listing.html`, `templates/home.html` and `refsite/render.py` can then
-be reused, including the search box, footer and Pagefind wiring.
+`chrome_template` as constructor arguments, so the RISC-V site gets its own
+title, copyright, disclaimer and chrome partial without duplicating
+`templates/page.html` or `templates/listing.html`.
+
+### CHERIoT extensions
+
+The CHERIoT RISC-V extensions are not part of the Unified Database. The
+generator takes them as an overlay: `--overlay-dir` recursively loads `*.yaml`
+files and replaces or appends instruction, CSR and extension objects by
+`name`. The phase-2 adapter will convert the CHERIoT specification's
+`archdoc/def-riscv-insns.tex` instruction table and the per-instruction
+`archdoc/insn-riscv/*.tex` files into that overlay shape, then build with:
+
+```sh
+python3 generate.py --arch riscv --overlay-dir path/to/cheriot-overlay ...
+```
 
 ## Repository layout
 
@@ -273,17 +465,23 @@ generate.py              CLI entry point
 Makefile                 Build, test and preview targets
 requirements.txt         Python dependencies
 refsite/
-  archive.py             Bundle discovery, safe extraction, release selection
+  archive.py             ARM bundle discovery, safe extraction, release selection
   model.py               Page and BuildStats data classes
+  output.py              Shared output paths, asset copying and robots.txt
   arm_isa.py             A64 instruction page selection
   arm_sysreg.py          Register page selection and link closure
   html_transform.py      Arm XHTML to site markup transformations
   indexes.py             XSLT-driven alphabetic listings
+  riscv_archive.py       RISC-V resolved-spec discovery and extraction
+  riscv_spec.py          RISC-V YAML object model and overlay loading
+  riscv_render.py        RISC-V page and listing markup
+  riscv_site.py          RISC-V build orchestration and assets
   render.py              Jinja environment and page render helpers
-  site.py                Build orchestration, assets and robots.txt
+  site.py                ARM build orchestration, assets and robots.txt
   pagefind.py            Optional Pagefind invocation
 templates/               Jinja templates, head fragments and chrome
 static/                  Published CSS, fonts and Pagefind bootstrap
+riscv/                   RISC-V stylesheet copied to static/riscv.css
 pagefind/                Published Pagefind component UI
 tests/                   Unit tests
 ```
@@ -310,6 +508,18 @@ command in [Downloading the bundles](#downloading-the-bundles).
 
 **Pagefind index is not generated**
 
-`make pagefind` needs either the `pagefind` executable or Node.js with `npx`.
-The site itself is already complete without the index; the search box will not
-return results until the index exists.
+`make pagefind` and `make riscv-pagefind` need either the `pagefind` executable
+or Node.js with `npx`. The site itself is already complete without the index;
+the search box will not return results until the index exists.
+
+**`no resolved_spec*.tar.gz`**
+
+The RISC-V bundle is missing or in the wrong directory. Download it with the
+`curl` command in [RISC-V quick start](#riscv-quick-start), or set
+`TARBALLS_DIR` to the directory that contains it.
+
+**`no resolved specification found`**
+
+The tarball extracted, but the loader could not find `index.yaml` with a
+sibling `inst/` directory. Check that the archive contains
+`gen/resolved_spec/_/`, or point `--tarballs-dir` at the correct bundle.

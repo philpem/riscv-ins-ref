@@ -22,3 +22,4 @@ class BuildStats:
     registers: int = 0
     listings: int = 0
     assets: int = 0
+    extensions: int = 0
