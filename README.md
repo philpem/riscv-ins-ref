@@ -79,7 +79,9 @@ git clone https://github.com/CHERIoT-Platform/cheriot-sail ../cheriot-sail
 make riscv-git-cheriot
 ```
 
-This adds the `Xcheriot` extension and its 33 capability instructions. The
+This adds the `Xcheriot` extension and its 33 capability instructions. CHERIoT
+mnemonics use the `ct.` vendor prefix allocated by the RISC-V Toolchain
+Conventions, for example `ct.cgetperm`, `ct.cseal` and `ct.auipcc`. The
 extension page notes that CHERIoT Ibex and CHERIoT Kudu implement the same ISA.
 ## Requirements
 
@@ -245,7 +247,8 @@ attributes, `indexes.py` runs Arm's XSLT indexes, and `site.py` writes the tree.
 The RISC-V pipeline starts from YAML. `riscv_archive.py` extracts the resolved
 specification, `riscv_spec.py` loads the objects and any overlays,
 `riscv_render.py` builds the page markup, and `riscv_site.py` writes the tree.
-`cheriot.py` parses `src/cheri_insts.sail` and adds the `Xcheriot` extension.
+`cheriot.py` parses `src/cheri_insts.sail`, applies the official CHERI aliases
+and the `ct.` vendor prefix, and adds the `Xcheriot` extension.
 `render.py` and `templates/` supply the shell shared by both pipelines.
 
 The Arm build reproduces the published `2026-09` site byte-for-byte: 2,315

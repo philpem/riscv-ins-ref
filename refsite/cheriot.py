@@ -26,6 +26,12 @@ class CheriotError(RuntimeError):
 
 
 EXTENSION_NAME = "Xcheriot"
+VENDOR_PREFIX = "ct."
+
+_LABEL_RE = re.compile(r"\\insnriscvlabel\{([^}]+)\}")
+_ALIAS_RE = re.compile(
+    r"\\asm\{([^}]+)\}\s+is an alias for this instruction\."
+)
 
 # Constructor name -> (mnemonic, assembly operands).  The renderer prepends the
 # mnemonic, so only the operand list is stored here.
@@ -259,7 +265,8 @@ def _extension() -> Extension:
             "CHERIoT extends RISC-V with capabilities: unforgeable references "
             "that carry bounds and permissions.  This is the CHERIoT 1.0 "
             "capability instruction set, implemented by both CHERIoT Ibex and "
-            "CHERIoT Kudu."
+            "CHERIoT Kudu.  Instruction mnemonics use the ct. vendor prefix "
+            "allocated by the RISC-V Toolchain Conventions."
         ),
         versions=(ExtensionVersion("1.0", "ratified", ""),),
         path="cheriot:Xcheriot",
@@ -268,13 +275,42 @@ def _extension() -> Extension:
     )
 
 
+def _alias_mnemonics(repo_root: Path) -> dict[str, str]:
+    """Return CHERIoT mnemonic -> official CHERI mnemonic aliases.
+
+    The CHERIoT per-instruction files record the names used by the wider CHERI
+    ISA specification, for example ``CIncOffset`` for the instruction the Sail
+    model calls ``CIncAddr``.
+    """
+
+    directory = repo_root / "archdoc" / "insn-riscv"
+    if not directory.is_dir():
+        return {}
+    aliases: dict[str, str] = {}
+    for path in sorted(directory.glob("*.tex")):
+        try:
+            text = path.read_text(encoding="utf-8")
+        except OSError as error:
+            raise CheriotError(f"could not read {path}: {error}") from error
+        label = _LABEL_RE.search(text)
+        alias = _ALIAS_RE.search(text)
+        if label and alias:
+            aliases[label.group(1).lower()] = alias.group(1).lower()
+    return aliases
+
+
 def load_cheriot(  # pylint: disable=too-many-locals
     repo: str | Path,
 ) -> tuple[Extension, list[Instruction]]:
     """Parse ``src/cheri_insts.sail`` from a cheriot-sail checkout."""
 
     root = Path(repo)
-    source = root if root.is_file() else root / "src" / "cheri_insts.sail"
+    if root.is_file():
+        source = root
+        repo_root = root.parent.parent
+    else:
+        repo_root = root
+        source = root / "src" / "cheri_insts.sail"
     try:
         text = source.read_text(encoding="utf-8")
     except OSError as error:
@@ -282,6 +318,7 @@ def load_cheriot(  # pylint: disable=too-many-locals
             f"could not read the CHERIoT Sail model at {source}: {error}"
         ) from error
 
+    aliases = _alias_mnemonics(repo_root)
     docs = _documentation(text)
     instructions: list[Instruction] = []
     seen: set[str] = set()
@@ -289,11 +326,12 @@ def load_cheriot(  # pylint: disable=too-many-locals
         ctor = match.group("ctor")
         if ctor not in _MNEMONICS:
             continue
-        mnemonic, assembly = _MNEMONICS[ctor]
+        original_mnemonic, assembly = _MNEMONICS[ctor]
+        mnemonic = VENDOR_PREFIX + aliases.get(original_mnemonic, original_mnemonic)
         if mnemonic in seen:
             raise CheriotError(f"duplicate CHERIoT instruction: {mnemonic}")
         seen.add(mnemonic)
-        description = docs.get(ctor) or _FALLBACK_DESCRIPTIONS.get(mnemonic, "")
+        description = docs.get(ctor) or _FALLBACK_DESCRIPTIONS.get(original_mnemonic, "")
         if not description:
             raise CheriotError(f"no description for CHERIoT instruction: {mnemonic}")
         instructions.append(
@@ -315,10 +353,13 @@ def load_cheriot(  # pylint: disable=too-many-locals
             )
         )
 
-    if len(instructions) != len(_MNEMONICS):
-        missing = set(_MNEMONICS.values())
-        found = {(item.name, item.assembly) for item in instructions}
-        absent = sorted(name for name, operands in missing if (name, operands) not in found)
+    expected = {
+        (VENDOR_PREFIX + aliases.get(name, name), operands)
+        for name, operands in _MNEMONICS.values()
+    }
+    found = {(item.name, item.assembly) for item in instructions}
+    absent = sorted(name for name, operands in expected if (name, operands) not in found)
+    if absent:
         raise CheriotError(
             "the CHERIoT Sail model is missing expected instructions: " + ", ".join(absent)
         )

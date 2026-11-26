@@ -70,31 +70,46 @@ class ParserTests(unittest.TestCase):
 
             by_name = {item.name: item for item in instructions}
             self.assertEqual(
-                by_name["cgetperm"].encodings[0][1].match,
+                by_name["ct.cgetperm"].encodings[0][1].match,
                 "111111100000-----000-----1011011",
             )
             self.assertEqual(
-                by_name["cseal"].encodings[0][1].match,
+                by_name["ct.cseal"].encodings[0][1].match,
                 "0001011----------000-----1011011",
             )
             self.assertEqual(
-                by_name["cincaddrimm"].encodings[0][1].match,
+                by_name["ct.cincaddrimm"].encodings[0][1].match,
                 "-----------------001-----1011011",
             )
             self.assertEqual(
-                [variable.name for variable in by_name["cgetperm"].encodings[0][1].variables],
+                [variable.name for variable in by_name["ct.cgetperm"].encodings[0][1].variables],
                 ["cs1", "rd"],
             )
             self.assertEqual(
-                [variable.name for variable in by_name["lc"].encodings[0][1].variables],
+                [variable.name for variable in by_name["ct.lc"].encodings[0][1].variables],
                 ["offset", "cs1", "cd"],
             )
             sc_offset = next(
                 variable
-                for variable in by_name["sc"].encodings[0][1].variables
+                for variable in by_name["ct.sc"].encodings[0][1].variables
                 if variable.name == "offset"
             )
             self.assertEqual(sc_offset.ranges, ((31, 25), (11, 7)))
+
+    def test_uses_official_cheri_alias(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, patch_mnemonics():
+            repo = make_repo(Path(directory))
+            tex = repo / "archdoc" / "insn-riscv" / "cincoffsetimm.tex"
+            tex.parent.mkdir(parents=True)
+            tex.write_text(
+                "\\insnriscvlabel{cincaddrimm}\n"
+                "\\asm{CIncOffsetImm} is an alias for this instruction.\n",
+                encoding="utf-8",
+            )
+            _, instructions = load_cheriot(repo)
+            names = {item.name for item in instructions}
+            self.assertIn("ct.cincoffsetimm", names)
+            self.assertNotIn("ct.cincaddrimm", names)
 
     def test_missing_source_is_an_error(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -177,7 +192,7 @@ versions:
 
             self.assertEqual(stats.instructions, 6)
             self.assertEqual(stats.extensions, 2)
-            self.assertTrue((output / "latest_riscv/insn/cgetperm.html").is_file())
+            self.assertTrue((output / "latest_riscv/insn/ct.cgetperm.html").is_file())
             self.assertTrue((output / "latest_riscv/ext/Xcheriot.html").is_file())
             page = (output / "latest_riscv/ext/Xcheriot.html").read_text(encoding="utf-8")
             self.assertIn("Ibex", page)
