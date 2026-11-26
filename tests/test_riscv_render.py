@@ -238,6 +238,10 @@ class ExtensionRenderTests(unittest.TestCase):
         self.assertIn('href="../csr/mstatus.html"', html)
         self.assertIn("2.1.0", html)
 
+    def test_sort_value_is_lowercase(self) -> None:
+        _, _, html = render_extension(dataclasses.replace(EXTENSION, name="Zba"))
+        self.assertIn('data-pagefind-sort="title:zba"', html)
+
     def test_empty_extension_explains_itself(self) -> None:
         _, _, html = render_extension(EXTENSION)
         self.assertIn("No instructions or CSRs are directly attributed", html)

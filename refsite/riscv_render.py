@@ -237,7 +237,7 @@ def render_instruction(  # pylint: disable=too-many-branches,too-many-statements
 
     parts = [
         f'<h1 class="instruction-section" data-pagefind-body="1" data-pagefind-weight="10" '
-        f'data-pagefind-sort="title:{_attr(title)}">{_text(title)}</h1>'
+        f'data-pagefind-sort="title:{_attr(title.lower())}">{_text(title)}</h1>'
     ]
     if instruction.long_name:
         parts.append(
@@ -408,7 +408,7 @@ def render_csr(csr: Csr) -> tuple[str, str, str]:  # pylint: disable=too-many-br
     description = _summary(csr.long_name, csr.description)
     parts = [
         f'<h1 class="register-section" data-pagefind-body="1" data-pagefind-weight="10" '
-        f'data-pagefind-sort="title:{_attr(title)}">{_text(title)}</h1>'
+        f'data-pagefind-sort="title:{_attr(title.lower())}">{_text(title)}</h1>'
     ]
     if csr.long_name:
         parts.append(f'<p class="insn_subtitle" data-pagefind-body="1">{_text(csr.long_name)}</p>')
@@ -486,7 +486,7 @@ def render_extension(
     description = _summary(extension.long_name, extension.description)
     parts = [
         f'<h1 class="extension-section" data-pagefind-body="1" data-pagefind-weight="10" '
-        f'data-pagefind-sort="title:{_attr(title)}">{_text(title)}</h1>'
+        f'data-pagefind-sort="title:{_attr(title.lower())}">{_text(title)}</h1>'
     ]
     if extension.long_name:
         parts.append(
