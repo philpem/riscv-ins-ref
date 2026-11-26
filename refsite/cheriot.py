@@ -275,6 +275,79 @@ def _extension() -> Extension:
     )
 
 
+def _extra_instructions() -> list[Instruction]:
+    """Return CHERIoT instructions that reuse standard RISC-V encodings.
+
+    The Sail model does not list the capability word loads and stores because
+    they share the standard ``LW`` and ``SW`` encodings; the capability check is
+    applied to the base register.
+    """
+
+    load = Instruction(
+        name="ct.clw",
+        long_name="",
+        description=(
+            "Load a 32-bit word through a capability. The capability's tag and "
+            "bounds are checked before the access."
+        ),
+        defined_by=EXTENSION_NAME,
+        assembly="rd, offset(cs1)",
+        encodings=(
+            (
+                None,
+                Encoding(
+                    match="-----------------010-----0000011",
+                    variables=(
+                        EncodingVariable("offset", ((31, 20),)),
+                        EncodingVariable("cs1", ((19, 15),)),
+                        EncodingVariable("rd", ((11, 7),)),
+                    ),
+                ),
+            ),
+        ),
+        access=(("s", "always"), ("u", "always")),
+        operation=None,
+        data_independent_timing=False,
+        hints=(),
+        pseudoinstructions=(),
+        extension=EXTENSION_NAME,
+        path="cheriot:ct.clw",
+        defined_by_extensions=(EXTENSION_NAME,),
+    )
+    store = Instruction(
+        name="ct.csw",
+        long_name="",
+        description=(
+            "Store a 32-bit word through a capability. The capability's tag and "
+            "bounds are checked before the access."
+        ),
+        defined_by=EXTENSION_NAME,
+        assembly="rs2, offset(cs1)",
+        encodings=(
+            (
+                None,
+                Encoding(
+                    match="-----------------010-----0100011",
+                    variables=(
+                        EncodingVariable("offset", ((31, 25), (11, 7))),
+                        EncodingVariable("rs2", ((24, 20),)),
+                        EncodingVariable("cs1", ((19, 15),)),
+                    ),
+                ),
+            ),
+        ),
+        access=(("s", "always"), ("u", "always")),
+        operation=None,
+        data_independent_timing=False,
+        hints=(),
+        pseudoinstructions=(),
+        extension=EXTENSION_NAME,
+        path="cheriot:ct.csw",
+        defined_by_extensions=(EXTENSION_NAME,),
+    )
+    return [load, store]
+
+
 def _alias_mnemonics(repo_root: Path) -> dict[str, str]:
     """Return CHERIoT mnemonic -> official CHERI mnemonic aliases.
 
@@ -352,6 +425,12 @@ def load_cheriot(  # pylint: disable=too-many-locals
                 defined_by_extensions=(EXTENSION_NAME,),
             )
         )
+
+    for extra in _extra_instructions():
+        if extra.name in seen:
+            raise CheriotError(f"duplicate CHERIoT instruction: {extra.name}")
+        seen.add(extra.name)
+        instructions.append(extra)
 
     expected = {
         (VENDOR_PREFIX + aliases.get(name, name), operands)

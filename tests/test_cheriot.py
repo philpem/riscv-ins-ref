@@ -66,7 +66,7 @@ class ParserTests(unittest.TestCase):
             self.assertEqual(extension.name, EXTENSION_NAME)
             self.assertIn("Ibex", extension.description)
             self.assertIn("Kudu", extension.description)
-            self.assertEqual(len(instructions), 5)
+            self.assertEqual(len(instructions), 7)
 
             by_name = {item.name: item for item in instructions}
             self.assertEqual(
@@ -81,6 +81,20 @@ class ParserTests(unittest.TestCase):
                 by_name["ct.cincaddrimm"].encodings[0][1].match,
                 "-----------------001-----1011011",
             )
+            self.assertEqual(
+                by_name["ct.clw"].encodings[0][1].match,
+                "-----------------010-----0000011",
+            )
+            self.assertEqual(
+                by_name["ct.csw"].encodings[0][1].match,
+                "-----------------010-----0100011",
+            )
+            csw_offset = next(
+                variable
+                for variable in by_name["ct.csw"].encodings[0][1].variables
+                if variable.name == "offset"
+            )
+            self.assertEqual(csw_offset.ranges, ((31, 25), (11, 7)))
             self.assertEqual(
                 [variable.name for variable in by_name["ct.cgetperm"].encodings[0][1].variables],
                 ["cs1", "rd"],
@@ -130,7 +144,10 @@ class ApplyTests(unittest.TestCase):
         spec = Spec(instructions=[], csrs=[], extensions=[existing])
         with tempfile.TemporaryDirectory() as directory, patch_mnemonics():
             apply_cheriot(spec, make_repo(Path(directory)))
-        self.assertEqual(len(spec.instructions), 5)
+        self.assertEqual(len(spec.instructions), 7)
+        names = {item.name for item in spec.instructions}
+        self.assertIn("ct.clw", names)
+        self.assertIn("ct.csw", names)
         self.assertEqual([item.name for item in spec.extensions], [EXTENSION_NAME])
         self.assertEqual(spec.extensions[0].long_name, "CHERIoT capability instructions")
 
@@ -190,7 +207,7 @@ versions:
                     cheriot_repo=make_repo(base / "cheriot"),
                 ).build()
 
-            self.assertEqual(stats.instructions, 6)
+            self.assertEqual(stats.instructions, 8)
             self.assertEqual(stats.extensions, 2)
             self.assertTrue((output / "latest_riscv/insn/ct.cgetperm.html").is_file())
             self.assertTrue((output / "latest_riscv/ext/Xcheriot.html").is_file())
