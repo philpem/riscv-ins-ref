@@ -554,11 +554,62 @@ def render_extension(
     return title, description, "\n".join(parts)
 
 
+VENDOR_PREFIXES = (
+    "aif.",
+    "cv.",
+    "ct.",
+    "esp.",
+    "mips.",
+    "nds.",
+    "qc.",
+    "ri.",
+    "sf.",
+    "smt.",
+    "th.",
+    "tt.",
+    "vt.",
+    "xl.",
+    "xt.",
+)
+
+
+def _vendor_prefix(name: str) -> str:
+    for prefix in VENDOR_PREFIXES:
+        if name.startswith(prefix):
+            return prefix
+    return ""
+
+
+def _extension_tokens(item: object) -> str:
+    extensions = getattr(item, "defined_by_extensions", ())
+    if extensions:
+        return " ".join(sorted(set(extensions)))
+    defined_by = getattr(item, "defined_by", "")
+    tokens = {
+        token
+        for token in re.findall(r"[A-Za-z][A-Za-z0-9]*", defined_by)
+        if token not in {"and", "or", "RV32", "RV64", "RV128"}
+    }
+    return " ".join(sorted(tokens))
+
+
+def _listing_filter(kind: str, label: str) -> str:
+    return (
+        f'<div class="listing-filter" data-filter-kind="{_attr(kind)}" '
+        f'data-filter-label="{_attr(label)}">'
+        '<div class="listing-filter-controls"></div>'
+        '<p class="listing-filter-status" aria-live="polite"></p>'
+        "</div>"
+    )
+
+
 def instruction_listing(spec: Spec) -> str:
     """Render the alphabetic table of all instructions."""
 
     rows = "".join(
-        "<tr>"
+        "<tr"
+        f' data-extensions="{_attr(_extension_tokens(item))}"'
+        f' data-prefix="{_attr(_vendor_prefix(item.name))}">'
         f'<td><a href="insn/{_attr(item.name)}.html"><code>{_text(item.name)}</code></a></td>'
         f"<td>{_text(_summary(item.long_name, item.description))}</td>"
         f"<td>{_text(item.extension or item.defined_by)}</td>"
@@ -566,7 +617,8 @@ def instruction_listing(spec: Spec) -> str:
         for item in spec.instructions
     )
     return (
-        '<table class="listing-table"><thead><tr>'
+        _listing_filter("instruction", "instructions")
+        + '<table class="listing-table"><thead><tr>'
         "<th>Instruction</th><th>Summary</th><th>Extension</th>"
         "</tr></thead><tbody>"
         f"{rows}</tbody></table>"
@@ -577,7 +629,9 @@ def csr_listing(spec: Spec) -> str:
     """Render the alphabetic table of all CSRs."""
 
     rows = "".join(
-        "<tr>"
+        "<tr"
+        f' data-extensions="{_attr(_extension_tokens(item))}"'
+        f' data-prefix="{_attr(_vendor_prefix(item.name))}">'
         f'<td><a href="csr/{_attr(item.name)}.html"><code>{_text(item.name)}</code></a></td>'
         f"<td>{_text(_summary(item.long_name, item.description))}</td>"
         f"<td>{f'0x{item.address:03X}' if item.address is not None else ''}</td>"
@@ -586,7 +640,8 @@ def csr_listing(spec: Spec) -> str:
         for item in spec.csrs
     )
     return (
-        '<table class="listing-table"><thead><tr>'
+        _listing_filter("csr", "CSRs")
+        + '<table class="listing-table"><thead><tr>'
         "<th>CSR</th><th>Summary</th><th>Address</th><th>Privilege</th>"
         "</tr></thead><tbody>"
         f"{rows}</tbody></table>"
@@ -600,7 +655,9 @@ def extension_listing(spec: Spec) -> str:
     for item in spec.extensions:
         versions = ", ".join(version.version for version in item.versions if version.version)
         rows.append(
-            "<tr>"
+            "<tr"
+            f' data-extensions="{_attr(item.name)}"'
+            f' data-prefix="{_attr(_vendor_prefix(item.name))}">'
             f'<td><a href="ext/{_attr(item.name)}.html"><code>{_text(item.name)}</code></a></td>'
             f"<td>{_text(_summary(item.long_name, item.description))}</td>"
             f"<td>{_text(item.type)}</td>"
@@ -608,7 +665,8 @@ def extension_listing(spec: Spec) -> str:
             "</tr>"
         )
     return (
-        '<table class="listing-table"><thead><tr>'
+        _listing_filter("extension", "extensions")
+        + '<table class="listing-table"><thead><tr>'
         "<th>Extension</th><th>Summary</th><th>Type</th><th>Versions</th>"
         "</tr></thead><tbody>"
         + "".join(rows)

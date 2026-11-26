@@ -101,6 +101,7 @@ class SiteBuildTests(unittest.TestCase):
                 "latest_riscv/csr/mstatus.html",
                 "latest_riscv/ext/I.html",
                 "static/main.css",
+                "static/riscv-filter.js",
                 "pagefind/pagefind-component-ui.js",
             ]
             for name in expected:
@@ -118,6 +119,8 @@ class SiteBuildTests(unittest.TestCase):
 
             listing = (output / "latest_riscv/index.html").read_text(encoding="utf-8")
             self.assertIn("/static/riscv.css", listing)
+            self.assertIn("/static/riscv-filter.js", listing)
+            self.assertIn('data-filter-kind="instruction"', listing)
 
             for name in (
                 "index.html",

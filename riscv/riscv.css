@@ -86,6 +86,55 @@
   color: var(--color-fg-alt);
 }
 
+.listing-filter {
+  margin: var(--margin-block-big);
+}
+
+.listing-filter-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: calc(var(--pad) / 2);
+}
+
+.listing-filter-actions button,
+.listing-filter-actions input {
+  font: inherit;
+  padding: calc(var(--pad) / 4) calc(var(--pad) / 2);
+}
+
+.listing-filter-actions input {
+  flex: 1 1 12rem;
+}
+
+.listing-filter-options {
+  margin-top: calc(var(--pad) / 2);
+}
+
+.listing-filter-options summary {
+  cursor: pointer;
+}
+
+.listing-filter-grid {
+  display: grid;
+  gap: calc(var(--pad) / 4) var(--pad);
+  grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+  max-height: 18rem;
+  overflow: auto;
+  padding: calc(var(--pad) / 2) 0;
+}
+
+.listing-filter-grid label {
+  align-items: center;
+  display: flex;
+  gap: calc(var(--pad) / 4);
+}
+
+.listing-filter-status {
+  color: var(--color-fg-alt);
+  margin-top: calc(var(--pad) / 2);
+}
+
 p.copyconf {
   overflow-wrap: anywhere;
 }

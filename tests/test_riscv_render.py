@@ -9,7 +9,9 @@ from refsite.riscv_render import (
     clean_description,
     csr_listing,
     encoding_table,
+    extension_listing,
     extension_members,
+    instruction_listing,
     render_csr,
     render_extension,
     render_instruction,
@@ -265,6 +267,32 @@ class ExtensionRenderTests(unittest.TestCase):
         spec = Spec(instructions=[instruction], csrs=[], extensions=[category, zaamo])
         members, _ = extension_members(spec, category)
         self.assertEqual([item.name for item in members], ["add"])
+
+
+class ListingFilterTests(unittest.TestCase):
+    def test_listings_expose_filter_metadata(self) -> None:
+        spec = Spec(instructions=[ADD], csrs=[MSTATUS], extensions=[EXTENSION])
+
+        instructions = instruction_listing(spec)
+        self.assertIn('class="listing-filter"', instructions)
+        self.assertIn('data-filter-kind="instruction"', instructions)
+        self.assertIn('data-extensions="I"', instructions)
+
+        cheriot = dataclasses.replace(
+            ADD,
+            name="ct.cgetperm",
+            defined_by="Xcheriot",
+            extension="Xcheriot",
+            defined_by_extensions=("Xcheriot",),
+        )
+        cheriot_html = instruction_listing(
+            Spec(instructions=[cheriot], csrs=[], extensions=[])
+        )
+        self.assertIn('data-prefix="ct."', cheriot_html)
+        self.assertIn('data-extensions="Xcheriot"', cheriot_html)
+
+        self.assertIn('data-extensions="Sm"', csr_listing(spec))
+        self.assertIn('data-extensions="I"', extension_listing(spec))
 
 
 if __name__ == "__main__":

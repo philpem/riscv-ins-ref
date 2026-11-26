@@ -237,6 +237,10 @@ Both trees are plain static files and can be served by any web server.
 Pagefind indexes the content pages only. The home and listing pages are excluded
 so they don't crowd out individual entries.
 
+On the RISC-V site, the instruction, CSR and extension listings have a
+client-side extension filter. Selections persist in `localStorage` and in the
+`ext` query parameter, so they survive navigation and can be shared.
+
 ## How it works
 
 The Arm pipeline uses Arm's own XHTML pages as the source markup.

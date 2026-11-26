@@ -124,14 +124,16 @@ class RiscvSiteBuilder:  # pylint: disable=too-few-public-methods,too-many-insta
 
     def _copy_assets(self) -> int:
         count = copy_shared_assets(self.assets_dir, self.output_dir)
-        stylesheet = self.assets_dir / "riscv" / "riscv.css"
-        if not stylesheet.is_file():
-            raise FileNotFoundError(
-                f"RISC-V stylesheet not found: {stylesheet} "
-                "(the generated pages link to /static/riscv.css)"
-            )
-        shutil.copy2(stylesheet, self.output_dir / "static" / "riscv.css")
-        return count + 1
+        for name in ("riscv.css", "riscv-filter.js"):
+            asset = self.assets_dir / "riscv" / name
+            if not asset.is_file():
+                raise FileNotFoundError(
+                    f"RISC-V asset not found: {asset} "
+                    f"(the generated pages link to /static/{name})"
+                )
+            shutil.copy2(asset, self.output_dir / "static" / name)
+            count += 1
+        return count
 
     def _footer_html(self) -> str:
         credit = CHERIOT_CREDIT if self.cheriot_repo is not None else ""
